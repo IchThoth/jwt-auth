@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -9,8 +10,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func Exec() error {
-	err := godotenv.Load("env")
+func Execute() error {
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -36,5 +37,7 @@ func Exec() error {
 }
 
 func main() {
-
+	if err := Execute(); err != nil {
+		fmt.Println(err)
+	}
 }
