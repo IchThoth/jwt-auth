@@ -1,13 +1,17 @@
 package helpers
 
 import (
+	"context"
 	"log"
 	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ichthoth/jwt-auth/database"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
@@ -40,6 +44,9 @@ func GenerateAllTokens(email string, firstName string, lastName string, userType
 		},
 	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodES256, Claims).SignedString([]byte(SECRET_KEY))
+	if err != nil {
+		log.Panic(err)
+	}
 	tokenRefresh, err := jwt.NewWithClaims(jwt.SigningMethodES256, RefreshClaims).SignedString([]byte(SECRET_KEY))
 
 	if err != nil {
@@ -47,4 +54,37 @@ func GenerateAllTokens(email string, firstName string, lastName string, userType
 	}
 
 	return token, tokenRefresh, err
+}
+
+func UpdateAllTokens(signedtoken string, signedRefreshToken string, userId string) {
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+	var updateObj primitive.D
+
+	updateObj = append(updateObj, bson.E{Key: "token", Value: signedtoken})
+	updateObj = append(updateObj, bson.E{Key: "refreshToken", Value: signedRefreshToken})
+
+	Updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{Key: "updated_at", Value: Updated_at})
+
+	uspsert := true
+	filter := bson.M{"user_id": userId}
+	opt := options.UpdateOptions{
+		Upsert: &uspsert,
+	}
+
+	_, err := userCollection.UpdateOne(
+		ctx,
+		filter,
+		bson.D{
+			{Key: "$set", Value: updateObj},
+		},
+		&opt,
+	)
+	defer cancel()
+
+	if err != nil {
+		log.Panic(err)
+	}
+
 }
