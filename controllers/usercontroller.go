@@ -21,8 +21,12 @@ import (
 var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
 var validate *validator.Validate = validator.New()
 
-func PasswordHash(userpassword string) {
-
+func PasswordHash(password string) string {
+	passwordcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		log.Panic(err)
+	}
+	return string(passwordcrypt)
 }
 
 func VerifyPassword(userpassword string, inputPassword string) (bool, string) {
@@ -44,17 +48,23 @@ func SignUp() gin.HandlerFunc {
 
 		if err := c.BindJSON(&users); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		validationErr := validate.Struct(users)
 		if validationErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
 		}
+
+		password := PasswordHash(*users.Password)
+		users.Password = &password
 
 		count, err := userCollection.CountDocuments(ctx, bson.M{"email": users.Email})
 		defer cancel()
 		if err != nil {
 			log.Panic(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while checking email"})
+			return
 		}
 		count, err = userCollection.CountDocuments(ctx, bson.M{"phone": users.Phone})
 		defer cancel()
@@ -106,7 +116,7 @@ func Login() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "email or password is invalid"})
 			return
 		}
-		passwordVerify, msg := VerifyPassword(*&users.Password, foundUser.Password)
+		passwordVerify, msg := VerifyPassword(*users.Password, *foundUser.Password)
 		defer cancel()
 
 	}
@@ -131,6 +141,8 @@ func GetUser() gin.HandlerFunc {
 	}
 }
 
-func GetUsers() {
+func GetUsers() gin.HandlerFunc {
+	return func(c *gin.Context) {
 
+	}
 }
