@@ -206,6 +206,6 @@ func GetUsers() gin.HandlerFunc {
 		if err = result.All(ctx, &allUsers); err != nil {
 			log.Fatal(err)
 		}
-
+		c.JSON(http.StatusOK, allUsers[0])
 	}
 }
